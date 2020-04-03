@@ -36,17 +36,17 @@ NTHREADS = 16
 CHUNKSIZE = 9000
 
 default_options = {
-    "resolution": "762,762",
-    "iterations": "500", # Increase this for good results
+    "resolution": "1512,762",
+    "iterations": "2500", # Increase this for good results
     "camera_position": "2.6,1.570796,0.",
     "field_of_view": 1.5,
-    "sRGB_in": "1",
-    "sRGB_out": "1",
+    "sRGB_in": "0",
+    "sRGB_out": "0",
     "distort": "1", # 0: None
     "gain": "1",
     "normalize": "-1", # -1 for off
     "redshift": "1",
-    "spin": ".999"
+    "spin": ".998"
 }
 options = default_options
 
@@ -158,21 +158,19 @@ def compute_carter_constant(theta, a_sqr, axial_momentum, azimuthal_momentum):
     )
 
 
-def largest_real_root_R(b, a, a_sqr, q, delta):
-    pm_term = (delta * ((b - a)**2 + q))
-    pm_term[pm_term < 0] = 0
-    pm_term = np.sqrt(pm_term)
-    P_term = a * b - a_sqr
+def largest_real_root_R(b, a, a_sqr, q):
+    coeffs = np.zeros((len(b), 5))
+    coeffs[..., 0] = 1.
+    coeffs[..., 2] = a_sqr - b**2 - q
+    coeffs[..., 3] = 2 * (a_sqr - 2 * a * b + b**2 + q)
+    coeffs[..., 4] = -q * a**2
 
-    r_sqr_0 = (P_term + pm_term)
-    r_sqr_1 = (P_term - pm_term)
-    r_sqr_0[r_sqr_0 < 0] = 0
-    r_sqr_1[r_sqr_1 < 0] = 0
-    r_0 = np.sqrt(r_sqr_0)
-    r_1 = np.sqrt(r_sqr_1)
+    real_max_roots = []
+    for row in coeffs:
+        roots = np.roots(row)
+        real_max_roots.append(roots[np.isreal(roots)].max().real)
 
-    r = np.array([r_0, r_1]).T
-    return r.max(axis=1)
+    return np.array(real_max_roots)
 
 
 def ray_from_horizon_mask(
@@ -207,9 +205,9 @@ def ray_from_horizon_mask(
 
     horizon_condition = np.logical_and(b_condition, q_condition)
 
-    # Two secondary conditions
+    # # Two secondary conditions
     if horizon_condition.any():
-        positive_radial_momentum = radial_momentum >= 0
+        positive_radial_momentum = radial_momentum > 0
 
     if horizon_condition.all():
         return positive_radial_momentum
@@ -219,9 +217,9 @@ def ray_from_horizon_mask(
             a,
             a_sqr,
             carter_constant,
-            delta,
         )
         r_cam_less_r_up = r < r_up
+        return r_cam_less_r_up
 
         if not horizon_condition.any():
             return r_cam_less_r_up
@@ -231,7 +229,7 @@ def ray_from_horizon_mask(
     return r_cam_less_r_up
 
 
-def rk4step(ode_fcn, t_0, delta_t, y_0):
+def rk4step(ode_fcn, t_0, delta_t, y_0, q):
     """ Compute one rk4 step.
 
     Args:
@@ -248,21 +246,21 @@ def rk4step(ode_fcn, t_0, delta_t, y_0):
     Returns:
         np.array(N, float): Final values.
     """
-    dy_0 = ode_fcn(y_0, t_0)
+    dy_0 = ode_fcn(y_0, t_0, q)
 
     y_1 = y_0 + dy_0 * delta_t / 2
-    dy_1 = ode_fcn(y_1, t_0 + delta_t / 2)
+    dy_1 = ode_fcn(y_1, t_0 + delta_t / 2, q)
 
     y_2 = y_0 + dy_1 * delta_t / 2
-    dy_2 = ode_fcn(y_2, t_0 + delta_t / 2)
+    dy_2 = ode_fcn(y_2, t_0 + delta_t / 2, q)
 
     y_3 = y_0 + dy_2 * delta_t
-    dy_3 = ode_fcn(y_3, t_0 + delta_t)
+    dy_3 = ode_fcn(y_3, t_0 + delta_t, q)
 
     return y_0 + (dy_0 + 2 * dy_1 + 2 * dy_2 + dy_3) * delta_t / 6
 
 
-def rk4_final(ode_fcn, t_span, y_0):
+def rk4_final(ode_fcn, t_span, y_0, q):
     """ N_out is the length of the `t_span` parameter.
         N is the length of the `y_0` parameter.
         Only returns the final solution to save memory.
@@ -288,17 +286,18 @@ def rk4_final(ode_fcn, t_span, y_0):
             prev_time,
             time - prev_time,
             solution,
+            q,
         )
         prev_time = time
 
     return solution
 
 
-def ray_equation(rtp_vel, time):
+def ray_equation(rtp_vel, time, q):
+    """ Solve the six ODEs """
     r, theta, phi, p_r, p_t, p_p = rtp_vel.T
 
     delta = _delta(r, SPIN_SQR)
-    q = compute_carter_constant(theta, SPIN_SQR, p_p, p_t)
 
     rho = _rho(r, theta, SPIN_SQR)
     rho_sqr = rho**2
@@ -425,8 +424,6 @@ def raytrace_schedule(i, schedule, total_shared, q):
             varpi,
             alpha,
         )
-        if camera_speed > 1:
-            camera_speed = 0.
 
         theta_cs, phi_cs = view.T
         norm_view = np.array([
@@ -441,13 +438,13 @@ def raytrace_schedule(i, schedule, total_shared, q):
             camera_speed,
         )
         momenta = canonical_momenta(rel_aberration, rho, delta, alpha, omega, varpi)
-        # axial_angular_momentum = momenta[..., 2]
-        # carter_constant = compute_carter_constant(
-        #     theta_c,
-        #     SPIN_SQR,
-        #     momenta[..., 1],
-        #     axial_angular_momentum,
-        # )
+        axial_angular_momentum = momenta[..., 2]
+        carter_constant = compute_carter_constant(
+            theta_c,
+            SPIN_SQR,
+            momenta[..., 1],
+            axial_angular_momentum,
+        )
         # hit_horizon = ray_from_horizon_mask(
         #     r_c,
         #     SPIN,
@@ -468,7 +465,7 @@ def raytrace_schedule(i, schedule, total_shared, q):
         times = np.linspace(0, -350, NITER)
 
         ode_fcn = ray_equation
-        solutions = rk4_final(ode_fcn, times, rtp_vel)
+        solutions = rk4_final(ode_fcn, times, rtp_vel, carter_constant)
 
         show_progress("generating sky layer...", i, q)
 
@@ -485,6 +482,7 @@ def raytrace_schedule(i, schedule, total_shared, q):
         show_progress("generating debug layers...", i, q)
 
         hit_horizon = solutions[..., 0] < horizon_radius
+        # col_bg[test] = np.ones_like(col_bg)[test]
         col_bg[hit_horizon] = np.zeros_like(col_bg)[hit_horizon]
 
         show_progress("blending layers...", i, q)
