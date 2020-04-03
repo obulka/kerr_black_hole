@@ -37,7 +37,7 @@ CHUNKSIZE = 9000
 
 default_options = {
     "resolution": "1512,762",
-    "iterations": "2500", # Increase this for good results
+    "iterations": "5000", # Increase this for good results
     "camera_position": "2.6,1.570796,0.",
     "field_of_view": 1.5,
     "sRGB_in": "0",
@@ -260,7 +260,7 @@ def rk4step(ode_fcn, t_0, delta_t, y_0, q):
     return y_0 + (dy_0 + 2 * dy_1 + 2 * dy_2 + dy_3) * delta_t / 6
 
 
-def rk4_final(ode_fcn, t_span, y_0, q):
+def rk4_final(ode_fcn, t_span, y_0, q, horizon_radius):
     """ N_out is the length of the `t_span` parameter.
         N is the length of the `y_0` parameter.
         Only returns the final solution to save memory.
@@ -280,7 +280,10 @@ def rk4_final(ode_fcn, t_span, y_0, q):
     # This loop structure accommodates negative time steps
     prev_time = t_span[0]
     solution = y_0.copy()
+    mask = np.zeros(solution.shape[0])
+
     for time in t_span[1:]:
+        mask = np.logical_or(mask, solution[..., 0] < horizon_radius)
         solution = rk4step(
             ode_fcn,
             prev_time,
@@ -290,7 +293,7 @@ def rk4_final(ode_fcn, t_span, y_0, q):
         )
         prev_time = time
 
-    return solution
+    return solution, mask
 
 
 def ray_equation(rtp_vel, time, q):
@@ -465,7 +468,7 @@ def raytrace_schedule(i, schedule, total_shared, q):
         times = np.linspace(0, -350, NITER)
 
         ode_fcn = ray_equation
-        solutions = rk4_final(ode_fcn, times, rtp_vel, carter_constant)
+        solutions, hit_horizon = rk4_final(ode_fcn, times, rtp_vel, carter_constant, horizon_radius)
 
         show_progress("generating sky layer...", i, q)
 
@@ -481,7 +484,7 @@ def raytrace_schedule(i, schedule, total_shared, q):
 
         show_progress("generating debug layers...", i, q)
 
-        hit_horizon = solutions[..., 0] < horizon_radius
+        # hit_horizon = solutions[..., 0] < horizon_radius
         # col_bg[test] = np.ones_like(col_bg)[test]
         col_bg[hit_horizon] = np.zeros_like(col_bg)[hit_horizon]
 
