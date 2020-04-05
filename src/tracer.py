@@ -113,26 +113,6 @@ def parse_args(defaults):
         type=int,
     )
     parser.add_argument(
-        "--srgb_in",
-        default=defaults["srgb_in"],
-        dest="srgb_in",
-        help=(
-            "Convert input texture to sRGB. "
-            "Default: {}"
-        ).format(defaults["srgb_in"]),
-        type=bool,
-    )
-    parser.add_argument(
-        "--srgb_out",
-        default=defaults["srgb_out"],
-        dest="srgb_out",
-        help=(
-            "Save output render as sRGB. "
-            "Default: {}"
-        ).format(defaults["srgb_out"]),
-        type=bool,
-    )
-    parser.add_argument(
         "-g",
         default=defaults["gain"],
         dest="gain",
@@ -151,6 +131,12 @@ def parse_args(defaults):
             "Default: {}"
         ).format(defaults["normalize"]),
         type=int,
+    )
+    parser.add_argument(
+        "--no_srgb",
+        action="store_true",
+        dest="no_srgb",
+        help="Do not convert input and output to sRGB. ",
     )
     parser.add_argument(
         "--disable_shuffle",
@@ -631,8 +617,6 @@ def main():
         "camera_position": "2.6,1.570796,0.",
         "num_processes": multi.cpu_count(),
         "chunk_size": 9000,
-        "srgb_in": True,
-        "srgb_out": True,
         "gain": 1,
         "normalize": 0,
         "spin": 0.998,
@@ -661,7 +645,7 @@ def main():
 
     # Convert to float to work in linear colour space
     texture = convert_image_to_float(texture)
-    if args.srgb_in:
+    if not args.no_srgb:
         # Convert to sRGB before resizing for correct results
         srgbtorgb(texture)
 
@@ -813,7 +797,7 @@ def main():
         colour,
         args.output_path,
         args.resolution,
-        srgb_out=args.srgb_out,
+        srgb_out=not args.no_srgb,
     )
 
 
