@@ -23,12 +23,12 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.join(
     os.path.dirname(os.path.realpath(__file__)),
-    "..",
+    os.pardir,
 )
 OUTPUT_DIR = "output"
 OUTPUT_PATH = os.path.join(BASE_DIR, OUTPUT_DIR)
 TEXTURE_DIR = "textures"
-TEXTURE_FILE = "grid.png"
+TEXTURE_FILE = "bgedit.jpg"
 
 DISABLE_SHUFFLING = False
 
@@ -37,7 +37,7 @@ CHUNKSIZE = 9000
 
 default_options = {
     "resolution": "1512,762",
-    "iterations": "5000", # Increase this for good results
+    "iterations": "500", # Increase this for good results
     "camera_position": "2.6,1.570796,0.",
     "field_of_view": 1.5,
     "sRGB_in": "0",
