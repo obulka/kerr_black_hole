@@ -1,5 +1,6 @@
 import curses
 import multiprocessing as multi
+import sys
 import time
 
 
@@ -54,9 +55,19 @@ class Outputter:
             pass
 
 
-def format_time(secs):
-    if secs < 60:
-        return "%d s" % secs
-    if secs < 60 * 3:
-        return "%d m %d s" % divmod(secs, 60)
-    return "%d min" % (secs / 60)
+def init_show_progress(chunk_counters, schedules):
+    return lambda message_string, index, queue: queue.put(
+        (
+            index,
+            "Chunk {}/{}, {}".format(
+                chunk_counters[index],
+                len(schedules[index]),
+                message_string.ljust(30),
+            )
+        )
+    )
+
+def print_help_and_exit():
+    print("Use the -h or --help switch for more help.")
+    print("Exiting...")
+    sys.exit()

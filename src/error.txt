@@ -1,0 +1,114 @@
+[?1049h[22;0;0t[1;55r(B[m[4l[?7h[H[2JM] ...
+0] Chunk 1/9, Generating view vectors...
+1] Chunk 1/8, Generating view vectors...
+2] Chunk 1/8, Generating view vectors...
+3] Chunk 1/8, Generating view vectors...
+4] Chunk 1/8, Generating view vectors...
+5] Chunk 1/8, Generating view vectors...
+6] Chunk 1/8, Generating view vectors...
+7] Chunk 1/8, Generating view vectors...
+8] Chunk 1/8, Generating view vectors...
+9] Chunk 1/8, Generating view vectors...
+10] Chunk 1/8, Generating view vectors...
+11] Chunk 1/8, Generating view vectors...
+12] Chunk 1/8, Generating view vectors...
+13] Chunk 1/8, Generating view vectors...
+14] Chunk 1/8, Generating view vectors...
+15] Chunk 1/8, Generating view vectors...[17;65H[HM] Idle.
+[15Gbeaming back to mothership.[17;65H[2;10H2/9, Generating view vectors...[K[3;10H2
+
+2
+/8, beaming back to mothership.[8;10H2
+/8, beaming back to mothership.[10;15Hbeaming back to mothership.[11;10H2
+
+[16Gbeaming back to mothership.[15;16Hg[15;27Hsky layer...[K[17;65H[4;15Hbeaming back to mothership.[6;10H2/8, Generating view vectors...[K[7;15Hbeaming back to mothership.[9;10H2/8, Generating view vectors...[K[10;10H2/8, Generating view vectors...[K[13;11H2/8, Generating view vectors...[K[15;11H2/8, G[15;27Hview vectors...[16;16Hbeaming back to mothership.[17;65H[4;10H2/8, Generating view vectors...[K[7;10H2/8, Generating view vectors...[K[16;11H2/8, Generating view vectors...[K[17;11H2[17;65H[12;11H2
+
+/8, beaming back to mothership.[17;65H[14;11H2/8, Generating view vectors...[K[17;65H[8;15Hg[8;26Hsky layer...[K[17;65H[2;10H3
+/8, beaming back to mothership.[5;15Hbeaming back to mothership.[6;10H3
+
+3/8, G[8;26Hview vectors...[9;15Hbeaming back to mothership.[10;15Hbeaming back to mothership.[11;15Hbeaming back to mothership.[15;16Hg[15;27Hsky layer...[K[17;65H[3;10H3/8, Generating view vectors...[K[4;15Hbeaming back to mothership.[5;10H3/8, Generating view vectors...[K[9;10H3/8, Generating view vectors...[K[10;10H3/8, Generating view vectors...[K[11;10H3/8, Generating view vectors...[K[13;11H3
+
+3/8, G[15;27Hview vectors...[17;65H[4;10H3/8, Generating view vectors...[K[7;10H3[12;16Hbeaming back to mothership.[14;16Hbeaming back to mothership.[16;11H3
+/8, beaming back to mothership.[17;65H[12;11H3/8, Generating view vectors...[K[14;11H3/8, Generating view vectors...[K[17;11H3/8, Generating view vectors...[K[17;65H[2;15Hbeaming back to mothership.[17;65H[2;10H4/9, Generating view vectors...[K[3;10H4
+
+4
+/8, beaming back to mothership.[8;10H4
+4
+4[15;16Hbeaming back to mothership.[17;65H[4;15Hbeaming back to mothership.[6;10H4/8, Generating view vectors...[K[11;15Hbeaming back to mothership.[15;11H4/8, Generating view vectors...[K[17;65H[4;10H4/8, Generating view vectors...[K[7;15Hg[7;26Hsky layer...[K[11;10H4/8, Generating view vectors...[K[12;11H4
+4
+/8, beaming back to mothership.[16;16Hg[16;27Hsky layer...[K[17;16Hbeaming back to mothership.[17;65H[7;10H4/8, G[7;26Hview vectors...[14;11H4/8, Generating view vectors...[K[16;11H4/8, G[16;27Hview vectors...[17;11H4/8, Generating view vectors...[K[17;65H[2;10H5
+/8, beaming back to mothership.[8;15Hbeaming back to mothership.[9;15Hbeaming back to mothership.[17;65H[3;10H5/8, Generating view vectors...[K[5;10H5
+5
+
+5/8, Generating view vectors...[K[9;10H5/8, Generating view vectors...[K[10;10H5
+/8, beaming back to mothership.[13;16Hbeaming back to mothership.[15;16Hbeaming back to mothership.[17;65H[4;10H5[11;10H5/8, Generating view vectors...[K[12;11H5
+5/8, Generating view vectors...[K[14;16Hbeaming back to mothership.[15;11H5/8, Generating view vectors...[K[17;65H[14;11H5/8, Generating view vectors...[K[17;16Hbeaming back to mothership.[17;65H[7;15Hbeaming back to mothership.[16;11H5
+5/8, Generating view vectors...[K[17;65H[7;10H5/8, Generating view vectors...[K[17;65H[2;10H6[17;65H[3;10H6
+
+
+/8, beaming back to mothership.[8;10H6
+6[17;65H[4;10H6
+6
+6/8, Generating view vectors...[K[10;10H6
+
+6
+
+
+/8, beaming back to mothership.[17;65H[14;16Hbeaming back to mothership.[15;11H6/8, Generating view vectors...[K[17;65H[14;11H6/8, Generating view vectors...[K[17;16Hbeaming back to mothership.[17;65H[11;15Hbeaming back to mothership.[13;16Hbeaming back to mothership.[17;11H6/8, Generating view vectors...[K[17;65H[7;10H6
+
+
+
+6/8, Generating view vectors...[K[13;11H6/8, Generating view vectors...[K[16;11H6[17;65H[2;10H7[8;15Hbeaming back to mothership.[17;65H[3;15Hbeaming back to mothership.[4;15Hbeaming back to mothership.[6;10H7
+
+7/8, Generating view vectors...[K[9;15Hbeaming back to mothership.[12;16Hbeaming back to mothership.[17;65H[3;10H7/8, Generating view vectors...[K[4;10H7/8, Generating view vectors...[K[5;10H7
+
+
+
+7/8, Generating view vectors...[K[10;10H7
+
+7/8, Generating view vectors...[K[14;16Hbeaming back to mothership.[15;16Hbeaming back to mothership.[17;65H[14;11H7/8, Generating view vectors...[K[15;11H7/8, Generating view vectors...[K[17;65H[17;16Hgarbage collection...[K[17;65H[17;11H7/8, Generating view vectors...[17;65H[7;10H7
+
+
+
+7
+
+7
+
+
+7[17;65H[2;10H8[17;65H[4;15Hbeaming back to mothership.[9;15Hbeaming back to mothership.[17;65H[3;10H8
+8/8, Generating view vectors...[K[5;10H8
+
+
+8
+8/8, Generating view vectors...[K[10;10H8
+
+[16Gbeaming back to mothership.[15;16Hg[15;27Hsky layer...[K[17;65H[12;11H8/8, Generating view vectors...[K[15;11H8/8, G[15;27Hview vectors...[17;65H[6;10H8[14;11H8
+
+
+/8, g[17;27Hsky layer...[K[17;65H[17;11H8/8, G[17;27Hview vectors...[17;65H[11;15Hbeaming back to mothership.[13;16Hg[13;27Hsky layer...[K[16;16Hbeaming back to mothership.[17;65H[7;10H8
+
+
+
+8/8, Generating view vectors...[K[13;11H8/8, G[13;27Hview vectors...[16;11H8/8, Generating view vectors...[K[17;65H[9;15Hbeaming back to mothership.[17;65H[2;15Hbeaming back to mothership.[3;15HDone.[K[8;15HDone.[K
+[15GDone.[K
+[15GDone.[K[17;65H[2;10H9/9, Generating view vectors...[K[4;15Hbeaming back to mothership.[5;15HDone.[K
+[15GDone.[K[12;16HDone.[K[15;16HDone.[K[17;65H[4;15HDone.[K[14;16HDone.[K[17;16Hbeaming back to mothership.[17;65H[17;16HDone.[K[17;65H[7;15Hbeaming back to mothership.[16;16Hbeaming back to mothership.[17;65H[7;15HDone.[K[16;16HDone.[K[17;65H[11;15HDone.[K
+
+Done.[K[17;65H[2;15HDone.[K[17;65H[55;1H[?1049l[23;0;0t[?1l>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

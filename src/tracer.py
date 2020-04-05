@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Standard Imports
+import argparse
 import ctypes
 import datetime
 import gc
@@ -13,77 +14,163 @@ import scipy.misc as spm
 import scipy.ndimage as ndim
 
 # Local Imports
-from black_hole_tracer.image_utils import *
-from black_hole_tracer.output_utils import *
-from black_hole_tracer.vec_utils import *
+from black_hole_tracer.utils.image import *
+from black_hole_tracer.utils.output import *
+from black_hole_tracer.utils.vector import *
 
 
 logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
-
-BASE_DIR = os.path.join(
-    os.path.dirname(os.path.realpath(__file__)),
-    os.pardir,
-)
-OUTPUT_DIR = "output"
-OUTPUT_PATH = os.path.join(BASE_DIR, OUTPUT_DIR)
-TEXTURE_DIR = "textures"
-TEXTURE_FILE = "bgedit.jpg"
-
-DISABLE_SHUFFLING = False
-
-NTHREADS = 16
-CHUNKSIZE = 9000
-
-default_options = {
-    "resolution": "1512,762",
-    "iterations": "500", # Increase this for good results
-    "camera_position": "2.6,1.570796,0.",
-    "field_of_view": 1.5,
-    "sRGB_in": "0",
-    "sRGB_out": "0",
-    "distort": "1", # 0: None
-    "gain": "1",
-    "normalize": "-1", # -1 for off
-    "redshift": "1",
-    "spin": ".998"
-}
-options = default_options
-
-try:
-    RESOLUTION = [int(x) for x in options["resolution"].split(",")]
-    NITER = int(options["iterations"])
-
-    CAMERA_POS = np.array([
-        float(x) for x in options["camera_position"].split(",")
-    ])
-
-    #perform linear rgb->srgb conversion
-    SRGBIN = int(options["sRGB_in"])
-    SRGBOUT = int(options["sRGB_out"])
-
-    DISTORT = int(options["distort"])
-    GAIN = float(options["gain"])
-    NORMALIZE = float(options["normalize"])
-    REDSHIFT = float(options["redshift"])
-
-    SPIN = float(options["spin"])
-    SPIN_SQR = SPIN**2
-
-except:
-    logger.debug("error reading options: insufficient data")
-    sys.exit()
-
-logger.debug("%dx%d", RESOLUTION[0], RESOLUTION[1])
+LOGGER = logging.getLogger(__name__)
 
 
-def show_progress(messtring, i, queue):
-    mes = "Chunk %d/%d, %s" % (
-        chunk_counters[i],
-        len(schedules[i]),
-        messtring.ljust(30)
+def parse_args(defaults):
+    """Parse the arguments.
+
+    Returns:
+        argparse.Namespace: The command line arguments.
+    """
+    parser = argparse.ArgumentParser(description="Ray trace a spinning black hole.")
+    parser.add_argument(
+        "-a",
+        default=defaults["spin"],
+        dest="spin",
+        help=(
+            "spin parameter a/M where M is 1. "
+            "Default: {}"
+        ).format(defaults["spin"]),
+        type=float,
     )
-    queue.put((i, mes))
+    parser.add_argument(
+        "-t",
+        default=defaults["texture_path"],
+        dest="texture_path",
+        help=(
+            "Path to the texture to apply the warping of spacetime to. "
+            "Default: {}"
+        ).format(defaults["texture_path"]),
+        type=str,
+    )
+    parser.add_argument(
+        "-o",
+        default=defaults["output_path"],
+        dest="output_path",
+        help=(
+            "Path to save the final render to (include filename). "
+            "Default: {}"
+        ).format(defaults["output_path"]),
+        type=str,
+    )
+    parser.add_argument(
+        "-r",
+        default=defaults["resolution"],
+        dest="resolution",
+        help=(
+            "Comma separated render resolution. "
+            "Default: {}"
+        ).format(defaults["resolution"]),
+        type=str,
+    )
+    parser.add_argument(
+        "-i",
+        default=defaults["iterations"],
+        dest="iterations",
+        help=(
+            "Number of steps to take during integration. "
+            "Higher values result in higher quality renders. "
+            "Default: {}"
+        ).format(defaults["iterations"]),
+        type=int,
+    )
+    parser.add_argument(
+        "-p",
+        default=defaults["camera_position"],
+        dest="camera_position",
+        help=(
+            "Comma separated position of the camera in spherical coordinates. "
+            "The corridinate order is radial, theta, phi. "
+            "Default: {}"
+        ).format(defaults["camera_position"]),
+        type=str,
+    )
+    parser.add_argument(
+        "-j",
+        default=defaults["num_processes"],
+        dest="num_processes",
+        help=(
+            "Number of processes to render in. "
+            "Default: {}"
+        ).format(defaults["num_processes"]),
+        type=int,
+    )
+    parser.add_argument(
+        "-c",
+        default=defaults["chunk_size"],
+        dest="chunk_size",
+        help=(
+            "Number of pixels per chunk. "
+            "Default: {}"
+        ).format(defaults["chunk_size"]),
+        type=int,
+    )
+    parser.add_argument(
+        "--srgb_in",
+        default=defaults["srgb_in"],
+        dest="srgb_in",
+        help=(
+            "Convert input texture to sRGB. "
+            "Default: {}"
+        ).format(defaults["srgb_in"]),
+        type=bool,
+    )
+    parser.add_argument(
+        "--srgb_out",
+        default=defaults["srgb_out"],
+        dest="srgb_out",
+        help=(
+            "Save output render as sRGB. "
+            "Default: {}"
+        ).format(defaults["srgb_out"]),
+        type=bool,
+    )
+    parser.add_argument(
+        "-g",
+        default=defaults["gain"],
+        dest="gain",
+        help=(
+            "Gain to apply during postprocessing. "
+            "Default: {}"
+        ).format(defaults["gain"]),
+        type=int,
+    )
+    parser.add_argument(
+        "-n",
+        default=defaults["normalize"],
+        dest="normalize",
+        help=(
+            "Normalization factor to apply during postprocessing. "
+            "Default: {}"
+        ).format(defaults["normalize"]),
+        type=int,
+    )
+    parser.add_argument(
+        "--disable_shuffle",
+        action="store_true",
+        dest="disable_shuffle",
+        help="Disable the shuffling of pixels before dividing into chunks.",
+    )
+    args = parser.parse_args()
+
+    try:
+        args.resolution = [int(pixels.strip()) for pixels in args.resolution.split(",")]
+        args.camera_position = [
+            float(coord.strip()) for coord in args.camera_position.split(",")
+        ]
+
+    except ValueError as error:
+        print(error)
+        print("\nUse the -h switch to see usage information.\n")
+        exit()
+    return args
 
 
 def equatorial_geodesic_orbit_velocity(r_c, a, omega, varpi, alpha):
@@ -229,7 +316,7 @@ def ray_from_horizon_mask(
     return r_cam_less_r_up
 
 
-def rk4step(ode_fcn, t_0, delta_t, y_0, q):
+def rk4step(ode_fcn, t_0, delta_t, y_0, q, spin, spin_sqr):
     """ Compute one rk4 step.
 
     Args:
@@ -246,21 +333,21 @@ def rk4step(ode_fcn, t_0, delta_t, y_0, q):
     Returns:
         np.array(N, float): Final values.
     """
-    dy_0 = ode_fcn(y_0, t_0, q)
+    dy_0 = ode_fcn(y_0, t_0, q, spin, spin_sqr)
 
     y_1 = y_0 + dy_0 * delta_t / 2
-    dy_1 = ode_fcn(y_1, t_0 + delta_t / 2, q)
+    dy_1 = ode_fcn(y_1, t_0 + delta_t / 2, q, spin, spin_sqr)
 
     y_2 = y_0 + dy_1 * delta_t / 2
-    dy_2 = ode_fcn(y_2, t_0 + delta_t / 2, q)
+    dy_2 = ode_fcn(y_2, t_0 + delta_t / 2, q, spin, spin_sqr)
 
     y_3 = y_0 + dy_2 * delta_t
-    dy_3 = ode_fcn(y_3, t_0 + delta_t, q)
+    dy_3 = ode_fcn(y_3, t_0 + delta_t, q, spin, spin_sqr)
 
     return y_0 + (dy_0 + 2 * dy_1 + 2 * dy_2 + dy_3) * delta_t / 6
 
 
-def rk4_final(ode_fcn, t_span, y_0, q, horizon_radius):
+def rk4_final(ode_fcn, t_span, y_0, q, horizon_radius, spin, spin_sqr):
     """ N_out is the length of the `t_span` parameter.
         N is the length of the `y_0` parameter.
         Only returns the final solution to save memory.
@@ -290,19 +377,21 @@ def rk4_final(ode_fcn, t_span, y_0, q, horizon_radius):
             time - prev_time,
             solution,
             q,
+            spin,
+            spin_sqr,
         )
         prev_time = time
 
     return solution, mask
 
 
-def ray_equation(rtp_vel, time, q):
+def ray_equation(rtp_vel, time, q, spin, spin_sqr):
     """ Solve the six ODEs """
     r, theta, phi, p_r, p_t, p_p = rtp_vel.T
 
-    delta = _delta(r, SPIN_SQR)
+    delta = _delta(r, spin_sqr)
 
-    rho = _rho(r, theta, SPIN_SQR)
+    rho = _rho(r, theta, spin_sqr)
     rho_sqr = rho**2
 
     dr_dxi = delta * p_r / rho_sqr
@@ -315,10 +404,10 @@ def ray_equation(rtp_vel, time, q):
 
     dphi_dxi = (
         (
-            SPIN**3
-            - SPIN_SQR * p_p
-            - SPIN * delta
-            + SPIN * r_sqr
+            spin**3
+            - spin_sqr * p_p
+            - spin * delta
+            + spin * r_sqr
             + p_p * delta * cot_sqr
             + p_p * delta
         ) / delta_rho_sqr
@@ -326,15 +415,15 @@ def ray_equation(rtp_vel, time, q):
 
     rho_fourth = rho_sqr**2
 
-    P = SPIN_SQR - SPIN * p_p + r**2
+    P = spin_sqr - spin * p_p + r**2
     P_sqr = P**2
     two_del_rho_sqr = 2 * delta * rho_sqr
-    P_term_2 = (p_p - SPIN)**2 + q
+    P_term_2 = (p_p - spin)**2 + q
     R = P_sqr - delta * P_term_2
     cos_theta = np.cos(theta)
 
     dpr_dxi = (
-        -p_r**2 * (SPIN_SQR * (r - 1) * cos_theta**2 + r * (r - SPIN_SQR))
+        -p_r**2 * (spin_sqr * (r - 1) * cos_theta**2 + r * (r - spin_sqr))
         / rho_fourth
         + r * p_t**2 / rho_fourth
         + (4 * r * P - 2 * (r - 1) * P_term_2)
@@ -342,22 +431,22 @@ def ray_equation(rtp_vel, time, q):
         - (2 * (r - 1) * R)
         / (two_del_rho_sqr * delta)
         - (r * R) / (delta * rho_fourth)
-        - r * (SPIN_SQR * cos_theta**2 - (p_p**2) * cot_sqr)
+        - r * (spin_sqr * cos_theta**2 - (p_p**2) * cot_sqr)
         / rho_fourth
     )
 
     sin_theta = np.sin(theta)
-    Theta_term_2 = (p_p**2 / sin_theta**2 - SPIN_SQR) * cos_theta**2
+    Theta_term_2 = (p_p**2 / sin_theta**2 - spin_sqr) * cos_theta**2
     Theta = q - Theta_term_2
 
     dpt_dxi = (
-        -SPIN_SQR * p_r**2 * (SPIN_SQR + (r - 2) * r) * sin_theta * cos_theta
+        -spin_sqr * p_r**2 * (spin_sqr + (r - 2) * r) * sin_theta * cos_theta
         / rho_fourth
-        - SPIN_SQR * p_t**2 * sin_theta * cos_theta
+        - spin_sqr * p_t**2 * sin_theta * cos_theta
         / rho_fourth
-        + SPIN_SQR * sin_theta * cos_theta * R
+        + spin_sqr * sin_theta * cos_theta * R
         / (delta * rho_fourth)
-        + SPIN_SQR * sin_theta * cos_theta * Theta
+        + spin_sqr * sin_theta * cos_theta * Theta
         / rho_fourth
         + (sin_theta * Theta_term_2 + p_p**2 / np.tan(theta)**3)
         / rho_sqr 
@@ -374,19 +463,33 @@ def ray_equation(rtp_vel, time, q):
     ]).T
 
 
-def raytrace_schedule(i, schedule, total_shared, q):
+# Disgusting arguments, initialize in a class
+def scheduled_raytrace(
+        i,
+        schedule,
+        total_shared,
+        q,
+        show_progress,
+        num_pixels,
+        iter_counters,
+        chunk_counters,
+        spin,
+        resolution,
+        camera_position,
+        iterations,
+        disable_shuffle,
+        texture):
     # this is the function running on each thread
     if len(schedule) == 0:
         return
 
     total_colour_buffer_preproc = to_numpy_array(total_shared, num_pixels)
 
-    #schedule = schedules[i]
-
-    iter_counters[i] = 0
+    iter_counters[i] = 0 # Increment in rk4 if we want to add time back
     chunk_counters[i] = 0
 
-    horizon_radius = 1.5 * (1 + np.sqrt(1 - SPIN_SQR))
+    spin_sqr = spin**2
+    horizon_radius = 1.5 * (1 + np.sqrt(1 - spin_sqr))
 
     for chunk in schedule:
         chunk_counters[i] += 1
@@ -396,33 +499,31 @@ def raytrace_schedule(i, schedule, total_shared, q):
 
         #useful constant arrays 
         ones = np.ones((num_chunk_pixels))
-        ones3 = np.ones((num_chunk_pixels, 3))
-        UPFIELD = np.outer(ones, np.array([0., 1., 0.]))
         BLACK = np.outer(ones, np.array([0., 0., 0.]))
 
         # arrays of integer pixel coordinates
-        x = chunk % RESOLUTION[0]
-        y = chunk / RESOLUTION[0]
+        x = chunk % resolution[0]
+        y = chunk / resolution[0]
 
         show_progress("Generating view vectors...", i, q)
 
         #the view vector in 3D space
         view = np.ones((num_chunk_pixels, 2))
 
-        view[:, 0] = np.pi * y.astype(float) / RESOLUTION[1]
-        view[:, 1] = 2 * np.pi * x.astype(float) / RESOLUTION[0]
+        view[:, 0] = np.pi * y.astype(float) / resolution[1]
+        view[:, 1] = 2 * np.pi * x.astype(float) / resolution[0]
 
-        r_c, theta_c, phi_c = CAMERA_POS
-        delta = _delta(r_c, SPIN_SQR)
-        sigma = _sigma(r_c, theta_c, SPIN_SQR, delta)
-        rho = _rho(r_c, theta_c, SPIN_SQR)
+        r_c, theta_c, phi_c = camera_position
+        delta = _delta(r_c, spin_sqr)
+        sigma = _sigma(r_c, theta_c, spin_sqr, delta)
+        rho = _rho(r_c, theta_c, spin_sqr)
         varpi = _varpi(theta_c, rho, sigma)
         alpha = _alpha(rho, delta, sigma)
-        omega = _omega(r_c, SPIN, sigma)
+        omega = _omega(r_c, spin, sigma)
 
         camera_vel_dir, camera_speed = equatorial_geodesic_orbit_velocity(
             r_c,
-            SPIN,
+            spin,
             omega,
             varpi,
             alpha,
@@ -444,14 +545,14 @@ def raytrace_schedule(i, schedule, total_shared, q):
         axial_angular_momentum = momenta[..., 2]
         carter_constant = compute_carter_constant(
             theta_c,
-            SPIN_SQR,
+            spin_sqr,
             momenta[..., 1],
             axial_angular_momentum,
         )
         # hit_horizon = ray_from_horizon_mask(
         #     r_c,
-        #     SPIN,
-        #     SPIN_SQR,
+        #     spin,
+        #     spin_sqr,
         #     carter_constant,
         #     axial_angular_momentum,
         #     momenta[..., 0],
@@ -460,15 +561,23 @@ def raytrace_schedule(i, schedule, total_shared, q):
         # from_celestial_sphere = np.logical_not(hit_horizon)
 
         # Runge-Kutta
-        bl_point = np.outer(ones, CAMERA_POS)
+        bl_point = np.outer(ones, camera_position)
         rtp_vel = np.ones((num_chunk_pixels, 6))
         rtp_vel[:, 0:3] = bl_point
         rtp_vel[:, 3:6] = momenta
 
-        times = np.linspace(0, -350, NITER)
+        times = np.linspace(0, -350, iterations)
 
         ode_fcn = ray_equation
-        solutions, hit_horizon = rk4_final(ode_fcn, times, rtp_vel, carter_constant, horizon_radius)
+        solutions, hit_horizon = rk4_final(
+            ode_fcn,
+            times,
+            rtp_vel,
+            carter_constant,
+            horizon_radius,
+            spin,
+            spin_sqr,
+        )
 
         show_progress("generating sky layer...", i, q)
 
@@ -480,7 +589,7 @@ def raytrace_schedule(i, schedule, total_shared, q):
         vuv[:, 0] = np.mod(vphi, 2 * np.pi) / (2 * np.pi)
         vuv[:, 1] = np.mod(vtheta, np.pi) / (np.pi)
 
-        col_bg = lookup(texarr_sky, vuv)[:, 0:3]
+        col_bg = lookup(texture, vuv)[:, 0:3]
 
         show_progress("generating debug layers...", i, q)
 
@@ -494,7 +603,7 @@ def raytrace_schedule(i, schedule, total_shared, q):
 
         show_progress("beaming back to mothership.", i, q)
 
-        if not DISABLE_SHUFFLING:
+        if not disable_shuffle:
             total_colour_buffer_preproc[chunk] = col_bg_and_obj
         else:
             total_colour_buffer_preproc[chunk[0]:(chunk[-1] + 1)] = col_bg_and_obj
@@ -505,175 +614,208 @@ def raytrace_schedule(i, schedule, total_shared, q):
     show_progress("Done.", i, q)
 
 
-#ensuring existence of tests directory
-if not os.path.exists(OUTPUT_PATH):
-    os.makedirs(OUTPUT_PATH)
-
-logger.debug("Loading textures...")
-texarr_sky = spm.imread(os.path.join(BASE_DIR, TEXTURE_DIR, TEXTURE_FILE))
-
-# must convert to float here so we can work in linear colour
-texarr_sky = texarr_sky.astype(float)
-texarr_sky /= 255.0
-if SRGBIN:
-    # must do this before resizing to get correct results
-    srgbtorgb(texarr_sky)
-
-# maybe doing this manually and then loading is better.
-logger.debug("(zooming sky texture...)")
-texarr_sky = spm.imresize(texarr_sky, 2.0, interp="bicubic")
-# imresize converts back to uint8 for whatever reason
-texarr_sky = texarr_sky.astype(float)
-texarr_sky /= 255.0
-
-
-logger.debug("Computing rotation matrix...")
-
-#array [0,1,2,...,num_pixels]
-pixel_indices = np.arange(0, RESOLUTION[0] * RESOLUTION[1], 1)
-
-#total number of pixels
-num_pixels = pixel_indices.shape[0]
-
-logger.debug("Generated %d pixel flattened array.", num_pixels)
-
-# useful constant arrays
-ones = np.ones((num_pixels))
-ones3 = np.ones((num_pixels, 3))
-UPFIELD = np.outer(ones,np.array([0., 1., 0.]))
-
-# random sample of floats
-random_sample = np.random.random_sample((num_pixels))
-
-
-# PARTITIONING
-
-# partition viewport in contiguous chunks
-# CHUNKSIZE = 9000
-if not DISABLE_SHUFFLING:
-    np.random.shuffle(pixel_indices)
-
-chunks = np.array_split(pixel_indices, num_pixels / CHUNKSIZE + 1)
-
-NCHUNKS = len(chunks)
-
-logger.debug("Split into %d chunks of %d pixels each", NCHUNKS, chunks[0].shape[0])
-
-total_colour_buffer_preproc_shared = multi.Array(ctypes.c_float, num_pixels * 3)
-total_colour_buffer_preproc = to_numpy_array(
-    total_colour_buffer_preproc_shared,
-    num_pixels,
-)
-
-# shuffle chunk list (does very good for equalizing load)
-random.shuffle(chunks)
-
-# partition chunk list in schedules for single threads
-schedules = []
-
-# from http://stackoverflow.com/questions/2659900/python-slicing-a-list-into-n-nearly-equal-length-partitions
-q, r = divmod(NCHUNKS, NTHREADS)
-indices = [q * i + min(i, r) for i in range(NTHREADS + 1)]
-
-for i in range(NTHREADS):
-    schedules.append(chunks[indices[i]:indices[i + 1]]) 
-
-logger.debug(
-    "Split list into %d schedules with %s chunks each",
-    NTHREADS,
-    ", ".join([str(len(schedule)) for schedule in schedules]),
-)
-
-# global clock start
-start_time = time.time()
-
-iter_counters = [0 for i in range(NTHREADS)]
-chunk_counters = [0 for i in range(NTHREADS)]
-
-#killers
-killers = [False for i in range(NTHREADS)]
-
-output = Outputter(NTHREADS)
-
-# Threading
-process_list = []
-for i in range(NTHREADS):
-    p = multi.Process(
-        target=raytrace_schedule,
-        args=(
-            i,
-            schedules[i],
-            total_colour_buffer_preproc_shared,
-            output.queue,
-        )
+def main():
+    """ Render a spinning black hole. """
+    base_dir = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)),
+        os.pardir,
     )
-    process_list.append(p)
+    default_output_path = os.path.join(base_dir, "output", "out.png")
+    default_texture_path = os.path.join(base_dir, "textures", "grid.png")
 
-logger.debug("Starting threads...")
+    default_options = {
+        "resolution": "1512,762",
+        "texture_path": default_texture_path,
+        "output_path": default_output_path,
+        "iterations": 500, # Increase this for good results
+        "camera_position": "2.6,1.570796,0.",
+        "num_processes": multi.cpu_count(),
+        "chunk_size": 9000,
+        "srgb_in": True,
+        "srgb_out": True,
+        "gain": 1,
+        "normalize": 0,
+        "spin": 0.998,
+    }
+    args = parse_args(default_options)
 
-for proc in process_list:
-    proc.start()
+    # Ensure output path exists
+    LOGGER.debug("Checking output location...")
 
-try:
-    refreshcounter = 0
-    while True:
-        refreshcounter += 1
-        time.sleep(0.1)
-    
-        output.parsemessages()
+    output_path = os.path.dirname(args.output_path)
+    if not os.path.exists(output_path):
+        print("Error: Output path does not exist at:")
+        print(args.output_path)
+        print("Create the directory or change the path then try again.")
+        print_help_and_exit()
 
-        output.setmessage("Idle.", -1)
+    LOGGER.debug("Loading texture...")
 
-        all_done = True
+    try:
+        texture = spm.imread(args.texture_path)
+    except FileNotFoundError as error:
+        print("Error: Texture file not found at:")
+        print(args.texture_path)
+        print_help_and_exit()
 
-        for i in range(NTHREADS):
-            if process_list[i].is_alive():
-                all_done = False
 
-        if all_done:
-            break
+    # Convert to float to work in linear colour space
+    texture = convert_image_to_float(texture)
+    if args.srgb_in:
+        # Convert to sRGB before resizing for correct results
+        srgbtorgb(texture)
 
-except KeyboardInterrupt:
-    for i in range(NTHREADS):
-        killers[i] = True
-    sys.exit()
+    LOGGER.debug("Scaling input texture...")
+    texture = convert_image_to_float(
+        spm.imresize(texture, 2.0, interp="bicubic"),
+    )
 
-del output
+    LOGGER.debug("Preparing for multiprocessing...")
 
-logger.debug("Done tracing.")
+    num_pixels = args.resolution[0] * args.resolution[1]
+    pixel_indices = np.arange(0, num_pixels)
 
-logger.debug(
-    "Total raytracing time: %s",
-    datetime.timedelta(seconds=(time.time() - start_time)),
-)
+    LOGGER.debug("Splitting into chunks...")
 
-logger.debug("Postprocessing...")
+    if not args.disable_shuffle:
+        np.random.shuffle(pixel_indices)
 
-#gain
-logger.debug("- gain...")
-total_colour_buffer_preproc *= GAIN
+    chunks = np.array_split(pixel_indices, num_pixels / args.chunk_size + 1)
 
-colour = total_colour_buffer_preproc
+    LOGGER.debug(
+        "Split into %d chunks of %d pixels each",
+        len(chunks),
+        chunks[0].shape[0],
+    )
 
-#normalization
-if NORMALIZE > 0:
-    logger.debug("- normalizing...")
-    colour *= 1 / (NORMALIZE * np.amax(colour.flatten()))
+    total_colour_buffer_preproc_shared = multi.Array(ctypes.c_float, num_pixels * 3)
+    total_colour_buffer_preproc = to_numpy_array(
+        total_colour_buffer_preproc_shared,
+        num_pixels,
+    )
 
-#final colour
-colour = np.clip(colour, 0., 1.)
+    # Shuffle chunks to equalize load
+    random.shuffle(chunks)
 
-logger.debug("Conversion to image and saving...")
+    # partition chunk list in schedules for single threads
+    schedules = []
 
-save_to_img(
-    colour,
-    os.path.join(OUTPUT_PATH, "out.png"),
-    RESOLUTION,
-    srgb_out=SRGBOUT,
-)
-save_to_img(
-    total_colour_buffer_preproc,
-    os.path.join(OUTPUT_PATH, "out.png"),
-    RESOLUTION,
-    srgb_out=SRGBOUT,
-)
+    # from http://stackoverflow.com/questions/2659900/python-slicing-a-list-into-n-nearly-equal-length-partitions
+    ########## Change this after all else tested
+    q, r = divmod(len(chunks), args.num_processes)
+    indices = [q * i + min(i, r) for i in range(args.num_processes + 1)]
+
+    for i in range(args.num_processes):
+        schedules.append(chunks[indices[i]:indices[i + 1]])
+    ##########
+
+    LOGGER.debug(
+        "Split load into %d processes with %s chunks in each, respectively...",
+        args.num_processes,
+        ", ".join([str(len(schedule)) for schedule in schedules]),
+    )
+
+    # Start clock to time raytracing
+    start_time = time.time()
+
+    iter_counters = np.zeros(args.num_processes).astype(int) # Add to rk4 or delete
+    chunk_counters = np.zeros(args.num_processes).astype(int)
+    killers = np.zeros(args.num_processes).astype(bool)
+
+    output = Outputter(args.num_processes)
+
+    show_progress = init_show_progress(chunk_counters, schedules)
+
+    # Multiprocessing
+    process_list = []
+    for process_num in range(args.num_processes):
+        process = multi.Process(
+            target=scheduled_raytrace,
+            args=(
+                process_num,
+                schedules[process_num],
+                total_colour_buffer_preproc_shared,
+                output.queue,
+                show_progress,
+                num_pixels,
+                iter_counters,
+                chunk_counters,
+                args.spin,
+                args.resolution,
+                args.camera_position,
+                args.iterations,
+                args.disable_shuffle,
+                texture,
+            )
+        )
+        process_list.append(process)
+
+    LOGGER.debug("Starting processes...")
+
+    ##### Try moving this ^^
+    for process in process_list:
+        process.start()
+
+    try:
+        refreshcounter = 0
+        while True:
+            refreshcounter += 1
+            time.sleep(0.1)
+        
+            output.parsemessages()
+
+            output.setmessage("Idle.", -1)
+
+            all_done = True
+            for process in process_list:
+                if process.is_alive():
+                    all_done = False
+                    break
+
+            if all_done:
+                break
+
+    except KeyboardInterrupt:
+        for process_num in range(args.num_processes):
+            killers[process_num] = True
+        sys.exit()
+
+    del output
+
+    LOGGER.debug("Finished raytracing...")
+
+    LOGGER.debug(
+        "Total raytracing time: %s",
+        datetime.timedelta(seconds=(time.time() - start_time)),
+    )
+
+    LOGGER.debug("Postprocessing...")
+
+    # Gain
+    LOGGER.debug("Applying gain...")
+    total_colour_buffer_preproc *= args.gain
+
+    colour = total_colour_buffer_preproc
+
+    # Normalization
+    if args.normalize > 0:
+        LOGGER.debug("Applying normalization...")
+        max_pixel = np.amax(colour.flatten())
+        if max_pixel:
+            colour *= 1 / (args.normalize * max_pixel)
+
+    # Final image colour
+    colour = np.clip(colour, 0., 1.)
+
+    LOGGER.debug("Conversion to final image and saving...")
+
+    save_to_img(
+        colour,
+        args.output_path,
+        args.resolution,
+        srgb_out=args.srgb_out,
+    )
+
+
+if __name__ == "__main__":
+    main()

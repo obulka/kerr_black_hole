@@ -5,7 +5,13 @@ import numpy as np
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# these need to be here
+
+def convert_image_to_float(image):
+    """
+    """
+    return image.astype(float) / 255.
+
+
 # convert from linear rgb to srgb
 def rgbtosrgb(arr):
     logger.debug("RGB -> sRGB...")
