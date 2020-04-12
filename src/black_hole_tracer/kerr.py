@@ -34,10 +34,10 @@ class KerrBlackHole:
         return self._horizon_radius
 
     @staticmethod
-    def equatorial_geodesic_orbit_velocity(r_c, a, omega, varpi, alpha):
+    def equatorial_geodesic_orbit_velocity(r_c, spin, omega, varpi, alpha):
         """
         """
-        return np.array([0, 0, 1.]), varpi * ((1 / (a + r_c**1.5)) - omega) / alpha
+        return np.array([0, 0, 1.]), varpi * ((1 / (spin + r_c**1.5)) - omega) / alpha
 
     @staticmethod
     def delta(r, a_sqr):
@@ -384,6 +384,8 @@ class KerrRaytracer(ScheduledImageGenerator):
         self._chunk_counters[process_num] = 0
 
         for chunk in schedule:
+            self._show_progress("initializing...", process_num)
+
             self._chunk_counters[process_num] += 1
 
             num_chunk_pixels = chunk.shape[0]
@@ -392,8 +394,6 @@ class KerrRaytracer(ScheduledImageGenerator):
 
             x = chunk % self._resolution[0]
             y = chunk / self._resolution[0]
-
-            self._show_progress("Generating view vectors...", process_num)
 
             view = np.ones((num_chunk_pixels, 2))
 
@@ -467,6 +467,9 @@ class KerrRaytracer(ScheduledImageGenerator):
             times = np.linspace(0, -10, self._iterations)
 
             ode_fcn = self._kerr_black_hole.ray_equation
+
+            self._show_progress("tracing...", process_num)
+
             solutions, hit_horizon = self._rk4_final(
                 ode_fcn,
                 times,
@@ -477,8 +480,6 @@ class KerrRaytracer(ScheduledImageGenerator):
                 spin_sqr,
             )
 
-            self._show_progress("generating sky layer...", process_num)
-
             vtheta = solutions[..., 1]
             vphi = solutions[..., 2]
 
@@ -488,19 +489,15 @@ class KerrRaytracer(ScheduledImageGenerator):
             vuv[:, 1] = np.mod(vtheta, np.pi) / (np.pi)
 
             colour = lookup(self._texture, vuv)[:, 0:3]
-
-            self._show_progress("generating debug layers...", process_num)
-
             colour[hit_horizon] = np.zeros_like(colour)[hit_horizon]
-
-            self._show_progress("beaming back to mothership.", process_num)
 
             if self._shuffle:
                 self._colour_buffer_preproc[chunk] = colour
             else:
                 self._colour_buffer_preproc[chunk[0]:(chunk[-1] + 1)] = colour
 
-            self._show_progress("garbage collection...", process_num)
+            self._show_progress("collecting garbage...", process_num)
+
             gc.collect()
 
-        self._show_progress("Done.", process_num)
+        self._show_progress("Completed.", process_num)
