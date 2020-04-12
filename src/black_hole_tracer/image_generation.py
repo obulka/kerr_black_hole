@@ -52,24 +52,16 @@ class ScheduledImageGenerator:
         # Shuffle chunks to equalize load
         random.shuffle(chunks)
 
-        # partition chunk list in schedules for single threads
-        self._schedules = []
+        division = len(chunks) / self._num_processes
+        self._schedules = [
+            chunks[round(division * process):round(division * (process + 1))]
+            for process in range(self._num_processes)
+        ]
 
-        # from http://stackoverflow.com/questions/2659900/python-slicing-a-list-into-n-nearly-equal-length-partitions
-        ########## Change this after all else tested
-        q, r = divmod(len(chunks), self._num_processes)
-        indices = [q * i + min(i, r) for i in range(self._num_processes + 1)]
-
-        for i in range(self._num_processes):
-            self._schedules.append(chunks[indices[i]:indices[i + 1]])
-        ##########
-
-        self._iter_counters = np.zeros(self._num_processes).astype(int) # Add to rk4 or delete
         self._chunk_counters = np.zeros(self._num_processes).astype(int)
         self._killers = np.zeros(self._num_processes).astype(bool)
 
         self._output = None
-
 
     @property
     def colour_buffer_preproc(self):
@@ -88,8 +80,6 @@ class ScheduledImageGenerator:
         array = np.frombuffer(mp_arr.get_obj(), dtype=np.float32)
         array.shape = (num_pixels, 3)
         return array
-
-
 
     def _show_progress(self, message_string, index):
         """

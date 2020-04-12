@@ -27,7 +27,10 @@ from black_hole_tracer.utils.output import print_help_and_exit
 
 
 def parse_args(defaults):
-    """Parse the arguments.
+    """ Parse the arguments.
+
+    Args:
+        defaults (dict): The default parameters.
 
     Returns:
         argparse.Namespace: The command line arguments.
@@ -177,8 +180,8 @@ def main():
         "resolution": (1512, 762),
         "texture_path": default_texture_path,
         "output_path": default_output_path,
-        "iterations": 150, # Increase this for good results
-        "camera_position": [10.6, 1.570796, 0.],
+        "iterations": 200, # Increase this for good results
+        "camera_position": [2.6, 1.570796, 0.],
         "num_processes": multi.cpu_count(),
         "chunk_size": 9000,
         "gain": 1,
@@ -202,7 +205,6 @@ def main():
         print("Error: Texture file not found at:")
         print(args.texture_path)
         print_help_and_exit()
-
 
     # Convert to float to work in linear colour space
     texture = convert_image_to_float(texture)

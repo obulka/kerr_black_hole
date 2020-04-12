@@ -353,7 +353,6 @@ class KerrRaytracer(ScheduledImageGenerator):
 
         self._colour_buffer_preproc = self._to_numpy_array(self._colour_buffer_preproc_shared, self._num_pixels)
 
-        self._iter_counters[process_num] = 0 # Increment in rk4 if we want to add time back
         self._chunk_counters[process_num] = 0
 
         for chunk in schedule:
