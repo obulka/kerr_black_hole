@@ -2,7 +2,6 @@ from numba import njit
 import numpy as np
 
 
-
 def sqr_norm(vec):
     """ 
     """
