@@ -181,12 +181,12 @@ def main():
         "texture_path": default_texture_path,
         "output_path": default_output_path,
         "iterations": 200, # Increase this for good results
-        "camera_position": [2.6, 1.570796, 0.],
+        "camera_position": [3.1, 1.570796, 0.],
         "num_processes": multi.cpu_count(),
         "chunk_size": 9000,
         "gain": 1,
         "normalize": 0,
-        "spin": 0.998,
+        "spin": 0.7,
     }
     args = parse_args(default_options)
 

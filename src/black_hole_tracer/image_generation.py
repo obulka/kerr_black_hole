@@ -35,19 +35,20 @@ class ScheduledImageGenerator:
         self._shuffle = shuffle
         self._start_time = 0
 
-        self._num_pixels = self._resolution[0] * self._resolution[1]
-        pixel_indices = np.arange(0, self._num_pixels)
+        num_pixels = self._resolution[0] * self._resolution[1]
+        pixel_indices = np.arange(0, num_pixels)
 
         if self._shuffle:
             np.random.shuffle(pixel_indices)
 
-        chunks = np.array_split(pixel_indices, self._num_pixels / chunk_size + 1)
+        chunks = np.array_split(pixel_indices, num_pixels / chunk_size + 1)
 
-        self._colour_buffer_preproc_shared = multi.Array(ctypes.c_float, self._num_pixels * 3)
-        self._colour_buffer_preproc = self._to_numpy_array(
-            self._colour_buffer_preproc_shared,
-            self._num_pixels,
+        colour_buffer_preproc_shared = multi.Array(ctypes.c_float, num_pixels * 3)
+        self._colour_buffer_preproc = np.frombuffer(
+            colour_buffer_preproc_shared.get_obj(),
+            dtype=np.float32,
         )
+        self._colour_buffer_preproc.shape = (num_pixels, 3)
 
         # Shuffle chunks to equalize load
         random.shuffle(chunks)
@@ -72,14 +73,6 @@ class ScheduledImageGenerator:
     def start_time(self):
         """"""
         return self._start_time
-
-    @staticmethod # Try without static
-    def _to_numpy_array(mp_arr, num_pixels):
-        """
-        """
-        array = np.frombuffer(mp_arr.get_obj(), dtype=np.float32)
-        array.shape = (num_pixels, 3)
-        return array
 
     def _show_progress(self, message_string, index):
         """
@@ -114,9 +107,6 @@ class ScheduledImageGenerator:
                 )
             )
             process_list.append(process)
-
-        ##### Try moving this ^^
-        for process in process_list:
             process.start()
 
         try:

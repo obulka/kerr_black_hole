@@ -11,7 +11,7 @@ from .utils.image import lookup
 
 
 class KerrBlackHole:
-    """"""
+    """ Kerr Black Hole implementation """
 
     def __init__(self, spin):
         self._spin = spin
@@ -20,30 +20,41 @@ class KerrBlackHole:
 
     @property
     def spin(self):
+        """"""
         return self._spin
 
     @property
     def spin_sqr(self):
+        """"""
         return self._spin_sqr
 
     @property
     def horizon_radius(self):
+        """"""
         return self._horizon_radius
 
     @staticmethod
     def equatorial_geodesic_orbit_velocity(r_c, a, omega, varpi, alpha):
+        """
+        """
         return np.array([0, 0, 1.]), varpi * ((1 / (a + r_c**1.5)) - omega) / alpha
 
     @staticmethod
     def delta(r, a_sqr):
+        """
+        """
         return r**2 - 2 * r + a_sqr
 
     @staticmethod
     def rho(r, theta, a_sqr):
+        """
+        """
         return np.sqrt(r**2 + a_sqr * np.cos(theta)**2)
 
     @staticmethod
     def sigma(r, theta, a_sqr, delta):
+        """
+        """
         return np.sqrt(
             (r**2 + a_sqr)**2
             - a_sqr * delta * np.sin(theta)**2
@@ -51,23 +62,31 @@ class KerrBlackHole:
 
     @staticmethod
     def alpha(rho, delta, sigma):
+        """
+        """
         return rho * np.sqrt(delta) / sigma
 
     @staticmethod
     def omega(r, a, sigma):
+        """
+        """
         return 2 * r * a / sigma**2
 
     @staticmethod
     def varpi(theta, rho, sigma):
+        """
+        """
         return sigma * np.sin(theta) / rho
 
     @staticmethod
     def Theta(theta, q, b, a_sqr):
+        """
+        """
         return q - ((b / np.sin(theta))**2 - a_sqr) * np.cos(theta)**2
 
     @staticmethod
     def relativistic_aberration(cart_ray_dir, camera_vel_dir, camera_speed):
-        """Note speed of light is 1"""
+        """ Note speed of light is 1. """
         B_r, B_theta, B_phi = camera_vel_dir
         N_x, N_y, N_z = cart_ray_dir.T
         denom = 1 - camera_speed * N_y
@@ -87,6 +106,8 @@ class KerrBlackHole:
 
     @staticmethod
     def canonical_momenta(rel_aberration, rho, delta, alpha, omega, varpi):
+        """
+        """
         E_F = 1 / (alpha + omega * varpi * rel_aberration[..., 2])
         return np.multiply(E_F[:, np.newaxis], rel_aberration) * np.array([
             rho / np.sqrt(delta),
@@ -96,6 +117,8 @@ class KerrBlackHole:
 
     @staticmethod
     def compute_carter_constant(theta, a_sqr, axial_momentum, azimuthal_momentum):
+        """
+        """
         return (
             azimuthal_momentum**2
             + ((axial_momentum / np.sin(theta))**2 - a_sqr)
@@ -104,6 +127,8 @@ class KerrBlackHole:
 
     @staticmethod
     def largest_real_root_R(b, a, a_sqr, q):
+        """
+        """
         coeffs = np.zeros((len(b), 5))
         coeffs[..., 0] = 1.
         coeffs[..., 2] = a_sqr - b**2 - q
@@ -126,10 +151,16 @@ class KerrBlackHole:
             axial_angular_momentum,
             radial_momentum,
             delta):
+        """
+        """
         def b_(r_, a, a_sqr):
+            """
+            """
             return -(r_**3 - 3 * r_**2 + a_sqr * r_ + a_sqr) / (a * (r_ - 1))
 
         def q_(r_, a_sqr):
+            """
+            """
             return (
                 -((r_**3) * (r_**3 - 6 * r_**2 + 9 * r_ - 4 * a_sqr))
                 / (a_sqr * (r_ - 1)**2)
@@ -174,9 +205,9 @@ class KerrBlackHole:
         return r_cam_less_r_up
 
     @staticmethod
-    def ray_equation(rtp_vel, time, q, spin, spin_sqr):
+    def ray_equation(rtp_vel, q, spin, spin_sqr):
         """ Solve the six ODEs """
-        r, theta, phi, p_r, p_t, p_p = rtp_vel.T
+        r, theta, _, p_r, p_t, p_p = rtp_vel.T
 
         delta = KerrBlackHole.delta(r, spin_sqr)
 
@@ -238,7 +269,7 @@ class KerrBlackHole:
             + spin_sqr * sin_theta * cos_theta * Theta
             / rho_fourth
             + (sin_theta * Theta_term_2 + p_p**2 / np.tan(theta)**3)
-            / rho_sqr 
+            / rho_sqr
         )
         dpp_dxi = np.zeros_like(dpt_dxi)
 
@@ -253,7 +284,7 @@ class KerrBlackHole:
 
 
 class KerrRaytracer(ScheduledImageGenerator):
-    """"""
+    """ Raytrace a Kerr black hole. """
 
     def __init__(
             self,
@@ -277,7 +308,7 @@ class KerrRaytracer(ScheduledImageGenerator):
         self._iterations = iterations
 
     @staticmethod
-    def _rk4_step(ode_fcn, t_0, delta_t, y_0, q, spin, spin_sqr):
+    def _rk4_step(ode_fcn, delta_xi, y_0, q, spin, spin_sqr):
         """ Compute one rk4 step.
 
         Args:
@@ -294,22 +325,22 @@ class KerrRaytracer(ScheduledImageGenerator):
         Returns:
             np.array(N, float): Final values.
         """
-        dy_0 = ode_fcn(y_0, t_0, q, spin, spin_sqr)
+        dy_0 = ode_fcn(y_0, q, spin, spin_sqr)
 
-        y_1 = y_0 + dy_0 * delta_t / 2
-        dy_1 = ode_fcn(y_1, t_0 + delta_t / 2, q, spin, spin_sqr)
+        y_1 = y_0 + dy_0 * delta_xi / 2
+        dy_1 = ode_fcn(y_1, q, spin, spin_sqr)
 
-        y_2 = y_0 + dy_1 * delta_t / 2
-        dy_2 = ode_fcn(y_2, t_0 + delta_t / 2, q, spin, spin_sqr)
+        y_2 = y_0 + dy_1 * delta_xi / 2
+        dy_2 = ode_fcn(y_2, q, spin, spin_sqr)
 
-        y_3 = y_0 + dy_2 * delta_t
-        dy_3 = ode_fcn(y_3, t_0 + delta_t, q, spin, spin_sqr)
+        y_3 = y_0 + dy_2 * delta_xi
+        dy_3 = ode_fcn(y_3, q, spin, spin_sqr)
 
-        return y_0 + (dy_0 + 2 * dy_1 + 2 * dy_2 + dy_3) * delta_t / 6
+        return y_0 + (dy_0 + 2 * dy_1 + 2 * dy_2 + dy_3) * delta_xi / 6
 
     @staticmethod
-    def _rk4_final(ode_fcn, t_span, y_0, q, horizon_radius, spin, spin_sqr):
-        """ N_out is the length of the `t_span` parameter.
+    def _rk4_final(ode_fcn, xi_span, y_0, q, horizon_radius, spin, spin_sqr):
+        """ N_out is the length of the `xi_span` parameter.
             N is the length of the `y_0` parameter.
             Only returns the final solution to save memory.
 
@@ -318,7 +349,7 @@ class KerrRaytracer(ScheduledImageGenerator):
                 Function handle for right hand sides of ODEs
                 (Returns: np.array(N, float)).
 
-            t_span (np.array(N_out, float)): Vector of output times.
+            xi_span (np.array(N_out, float)): Vector of output times.
 
             y_0 (np.array(N, float)): Initial values.
 
@@ -326,15 +357,14 @@ class KerrRaytracer(ScheduledImageGenerator):
             np.array(N, float): Output values.
         """
         # This loop structure accommodates negative time steps
-        prev_time = t_span[0]
+        prev_time = xi_span[0]
         solution = y_0.copy()
         mask = np.zeros(solution.shape[0])
 
-        for time in t_span[1:]:
+        for time in xi_span[1:]:
             mask = np.logical_or(mask, solution[..., 0] < horizon_radius)
             solution = KerrRaytracer._rk4_step(
                 ode_fcn,
-                prev_time,
                 time - prev_time,
                 solution,
                 q,
@@ -350,8 +380,6 @@ class KerrRaytracer(ScheduledImageGenerator):
         """
         if len(schedule) == 0:
             return
-
-        self._colour_buffer_preproc = self._to_numpy_array(self._colour_buffer_preproc_shared, self._num_pixels)
 
         self._chunk_counters[process_num] = 0
 
@@ -372,7 +400,7 @@ class KerrRaytracer(ScheduledImageGenerator):
             view[:, 0] = np.pi * y.astype(float) / self._resolution[1]
             view[:, 1] = 2 * np.pi * x.astype(float) / self._resolution[0] - np.pi
 
-            r_c, theta_c, phi_c = self._camera_position
+            r_c, theta_c, _ = self._camera_position
             spin_sqr = self._kerr_black_hole.spin_sqr
             spin = self._kerr_black_hole.spin
 
@@ -392,10 +420,10 @@ class KerrRaytracer(ScheduledImageGenerator):
             )
 
             theta_cs, phi_cs = view.T
-            norm_view = -np.array([
-                np.sin(theta_cs) * np.cos(phi_cs),
-                np.sin(theta_cs) * np.sin(phi_cs),
-                np.cos(theta_cs),
+            norm_view = np.array([
+                -np.sin(theta_cs) * np.cos(phi_cs),
+                -np.sin(theta_cs) * np.sin(phi_cs),
+                -np.cos(theta_cs),
             ]).T
 
             rel_aberration = self._kerr_black_hole.relativistic_aberration(
@@ -403,7 +431,14 @@ class KerrRaytracer(ScheduledImageGenerator):
                 camera_vel_dir,
                 camera_speed,
             )
-            momenta = self._kerr_black_hole.canonical_momenta(rel_aberration, rho, delta, alpha, omega, varpi)
+            momenta = self._kerr_black_hole.canonical_momenta(
+                rel_aberration,
+                rho,
+                delta,
+                alpha,
+                omega,
+                varpi,
+            )
             axial_angular_momentum = momenta[..., 2]
             carter_constant = self._kerr_black_hole.compute_carter_constant(
                 theta_c,
@@ -411,7 +446,10 @@ class KerrRaytracer(ScheduledImageGenerator):
                 momenta[..., 1],
                 axial_angular_momentum,
             )
-            # hit_horizon = ray_from_horizon_mask(
+            ## This was the attempt at the:
+            ## "Gravitational lensing by spinning black holes in astrophysics,
+            ## and in the movie Interstellar" Implementation that has yet to work
+            # hit_horizon = KerrBlackHole.ray_from_horizon_mask(
             #     r_c,
             #     spin,
             #     spin_sqr,
@@ -420,9 +458,7 @@ class KerrRaytracer(ScheduledImageGenerator):
             #     momenta[..., 0],
             #     delta,
             # )
-            # from_celestial_sphere = np.logical_not(hit_horizon)
 
-            # Runge-Kutta
             bl_point = np.outer(ones, self._camera_position)
             rtp_vel = np.ones((num_chunk_pixels, 6))
             rtp_vel[:, 0:3] = bl_point
@@ -455,8 +491,6 @@ class KerrRaytracer(ScheduledImageGenerator):
 
             self._show_progress("generating debug layers...", process_num)
 
-            # hit_horizon = solutions[..., 0] < horizon_radius
-            # col_bg[test] = np.ones_like(col_bg)[test]
             colour[hit_horizon] = np.zeros_like(colour)[hit_horizon]
 
             self._show_progress("beaming back to mothership.", process_num)
