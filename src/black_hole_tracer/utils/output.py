@@ -10,15 +10,15 @@ class Outputter:
     def __init__(self, num_threads):
         """
         """
-        self.message = {}
+        self._message = {}
         self._num_threads = num_threads
         self._queue = multi.Queue()
         self.stdscr = curses.initscr()
         curses.noecho()
 
         for i in range(self._num_threads):
-            self.message[i] = "..."
-        self.message[-1] = "..."
+            self._message[i] = "..."
+        self._message[-1] = "..."
 
     @property
     def queue(self):
@@ -40,7 +40,7 @@ class Outputter:
             self.stdscr.addstr(
                 i,
                 0,
-                self.name(i - 1) + "] " + self.message[i - 1],
+                self.name(i - 1) + "] " + self._message[i - 1],
             )
         self.stdscr.refresh()
 
@@ -60,7 +60,7 @@ class Outputter:
     def setmessage(self, mess, i):
         """
         """
-        self.message[i] = mess.ljust(60)
+        self._message[i] = mess.ljust(60)
 
     def __del__(self):
         try:
