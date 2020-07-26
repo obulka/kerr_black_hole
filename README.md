@@ -2,9 +2,16 @@
 
 This project allows you to trace the null geodesics of Kerr spacetime, in other words, it allows you to ray trace a spinning black hole. The code is written in python and operates in multiple processes to increase the efficiency.
 
+## Setup
+
+This project is managed via pipenv. To setup the project, traverse to this directory and run:
+
+    pipenv shell
+    pipenv install
+
 ## Run
 
-The executable file is ./src/tracer.py, use the -h or --help switches to view the usage options.
+The executable file is `./src/tracer.py`, use the `-h` or `--help` switches to view the usage options.
 
 ## References:
 
